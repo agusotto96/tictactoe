@@ -19,7 +19,7 @@ func main() {
 	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
 		ListenConns(connCh, w, r)
 	})
-	go http.ListenAndServe("127.0.0.1:8080", nil)
+	go http.ListenAndServe("0.0.0.0:8080", nil)
 	go BuildGames(connCh, gameCh)
 	for game := range gameCh {
 		go StartGame(game)
