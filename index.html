@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            margin: 0;
+        }
+
+        #container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        #messages {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        #messageInput {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #connectButton {
+            background-color: #333;
+            color: #fff;
+            border: none;
+        }
+
+        #connectButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #sendButton {
+            background-color: #333;
+            color: #fff;
+            border: none;
+        }
+
+        #sendButton:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #disconnectButton {
+            background-color: #FF5733;
+            color: #fff;
+            border: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="container">
+        <div id="messages"></div>
+        <input type="text" id="messageInput" placeholder="Enter a message">
+        <button id="connectButton">Connect</button>
+        <button id="disconnectButton" disabled>Disconnect</button>
+        <button id="sendButton" disabled>Send</button>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById("messages");
+        const messageInput = document.getElementById("messageInput");
+        const connectButton = document.getElementById("connectButton");
+        const sendButton = document.getElementById("sendButton");
+        const disconnectButton = document.getElementById("disconnectButton");
+        let ws;
+
+        connectButton.addEventListener("click", () => {
+            // Clear game history
+            messagesDiv.innerHTML = "";
+            
+            // Open the WebSocket connection when the "Connect" button is clicked
+            //ws = new WebSocket("ws://127.0.0.1:8080/game");
+            ws = new WebSocket(`ws://${window.location.host}/game`);
+
+            ws.onopen = () => {
+                messagesDiv.innerHTML += "<p>Connected to WebSocket server</p>";
+                connectButton.style.display = "none"; // Hide the Connect button
+                disconnectButton.style.display = "block"; // Show the Disconnect button
+                sendButton.disabled = false; // Enable the Send button
+                disconnectButton.disabled = false; // Enable the Disconnect button
+            };
+
+            ws.onmessage = (event) => {
+                const message = event.data;
+                const timestamp = new Date().toLocaleTimeString();
+                messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
+                // Auto-scroll to the latest message
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            };
+
+            ws.onclose = (event) => {
+                if (event.wasClean) {
+                    messagesDiv.innerHTML += `<p>Connection closed cleanly, code=${event.code}, reason=${event.reason}</p>`;
+                } else {
+                    messagesDiv.innerHTML += `<p>Connection died: code=${event.code}, reason=${event.reason}</p>`;
+                }
+                connectButton.style.display = "block"; // Show the Connect button
+                disconnectButton.style.display = "none"; // Hide the Disconnect button
+                sendButton.disabled = true; // Disable the Send button
+                disconnectButton.disabled = true; // Disable the Disconnect button
+            };
+
+            ws.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+            };
+        });
+
+        sendButton.addEventListener("click", () => {
+            sendMessage();
+        });
+
+        messageInput.addEventListener("keyup", (event) => {
+            if (event.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        disconnectButton.addEventListener("click", () => {
+            ws.close();
+        });
+
+        function sendMessage() {
+            const message = messageInput.value;
+            ws.send(message);
+            const timestamp = new Date().toLocaleTimeString();
+            messagesDiv.innerHTML += `<p>${timestamp} - Sent: ${message}</p>`;
+            messageInput.value = "";
+            // Auto-scroll to the latest message
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+    </script>
+</body>
+</html>
