@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"time"
 
-	"nhooyr.io/websocket"
-	"nhooyr.io/websocket/wsjson"
+	"github.com/gorilla/websocket"
 )
 
 func main() {
@@ -26,8 +24,13 @@ func main() {
 	}
 }
 
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+}
+
 func ListenConns(ch chan<- *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-	conn, err := websocket.Accept(w, r, nil)
+	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
@@ -117,21 +120,19 @@ func StartGame(game Game) {
 }
 
 func ReadMsg(conn *websocket.Conn) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
 	var msg string
-	err := wsjson.Read(ctx, conn, &msg)
+	conn.SetReadDeadline(time.Now().Add(45 * time.Second))
+	err := conn.ReadJSON(&msg)
 	return msg, err
 }
 
 func WriteMsg(conn *websocket.Conn, msg interface{}) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	return wsjson.Write(ctx, conn, msg)
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	return conn.WriteJSON(msg)
 }
 
 func Disconnect(conn *websocket.Conn) {
-	conn.Close(websocket.StatusNormalClosure, "")
+	conn.Close()
 }
 
 func ProcessMove(t *TicTacToe, move string, p int) error {
