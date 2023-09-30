@@ -11,30 +11,25 @@ import (
 func main() {
 	connCh := make(chan *websocket.Conn)
 	gameCh := make(chan Game)
+	var upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "index.html")
 	})
 	http.HandleFunc("/game", func(w http.ResponseWriter, r *http.Request) {
-		ListenConns(connCh, w, r)
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		connCh <- conn
 	})
 	go http.ListenAndServe("0.0.0.0:8080", nil)
 	go BuildGames(connCh, gameCh)
 	for game := range gameCh {
 		go StartGame(game)
 	}
-}
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
-
-func ListenConns(ch chan<- *websocket.Conn, w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-	ch <- conn
 }
 
 func BuildGames(connCh <-chan *websocket.Conn, gameCh chan<- Game) {
@@ -106,8 +101,8 @@ func StartGame(game Game) {
 					WriteMsg(p1, "TIE")
 					WriteMsg(p2, "TIE")
 				}
-				Disconnect(p1)
-				Disconnect(p2)
+				p1.Close()
+				p2.Close()
 				return
 			}
 			p1Turn = !p1Turn
@@ -115,8 +110,8 @@ func StartGame(game Game) {
 	}
 	WriteMsg(p1, "DISCONNECTED")
 	WriteMsg(p2, "DISCONNECTED")
-	Disconnect(p1)
-	Disconnect(p2)
+	p1.Close()
+	p2.Close()
 }
 
 func ReadMsg(conn *websocket.Conn) (string, error) {
@@ -129,10 +124,6 @@ func ReadMsg(conn *websocket.Conn) (string, error) {
 func WriteMsg(conn *websocket.Conn, msg interface{}) error {
 	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	return conn.WriteJSON(msg)
-}
-
-func Disconnect(conn *websocket.Conn) {
-	conn.Close()
 }
 
 func ProcessMove(t *TicTacToe, move string, p int) error {
