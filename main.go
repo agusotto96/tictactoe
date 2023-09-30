@@ -117,7 +117,7 @@ func StartGame(game Game) {
 }
 
 func ReadMsg(conn *websocket.Conn) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var msg string
 	err := wsjson.Read(ctx, conn, &msg)
@@ -125,7 +125,7 @@ func ReadMsg(conn *websocket.Conn) (string, error) {
 }
 
 func WriteMsg(conn *websocket.Conn, msg interface{}) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	return wsjson.Write(ctx, conn, msg)
 }
