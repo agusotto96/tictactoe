@@ -106,7 +106,6 @@
             messagesDiv.innerHTML = "";
             
             // Open the WebSocket connection when the "Connect" button is clicked
-            //ws = new WebSocket("ws://127.0.0.1:8080/game");
             ws = new WebSocket(`ws://${window.location.host}/game`);
 
             ws.onopen = () => {
@@ -120,9 +119,14 @@
             ws.onmessage = (event) => {
                 const message = event.data;
                 const timestamp = new Date().toLocaleTimeString();
-                messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
-                // Auto-scroll to the latest message
-                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                if (message.includes('"READY"')) {
+                    // Respond with "READY" to the server without displaying it
+                    ws.send('"READY"');
+                } else {
+                    messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
+                    // Auto-scroll to the latest message
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
             };
 
             ws.onclose = (event) => {

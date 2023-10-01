@@ -23,12 +23,13 @@ func main() {
 		if err != nil {
 			return
 		}
+		conn.SetReadLimit(512)
 		connCh <- conn
 	})
 	go http.ListenAndServe("0.0.0.0:8080", nil)
 	go BuildGames(connCh, gameCh)
 	for game := range gameCh {
-		go StartGame(game)
+		go CheckGame(connCh, game)
 	}
 }
 
@@ -42,6 +43,32 @@ func BuildGames(connCh <-chan *websocket.Conn, gameCh chan<- Game) {
 			gameCh <- game
 			game = Game{}
 		}
+	}
+}
+
+func CheckGame(ch chan<- *websocket.Conn, game Game) {
+	p1 := game.P1
+	p2 := game.P2
+	p1Err := CheckReady(p1)
+	p2Err := CheckReady(p2)
+	if p1Err == nil && p2Err == nil {
+		StartGame(game)
+		return
+	}
+	if p1Err != nil && p2Err == nil {
+		p1.Close()
+		ch <- p2
+		return
+	}
+	if p1Err == nil && p2Err != nil {
+		p2.Close()
+		ch <- p1
+		return
+	}
+	if p2Err != nil && p2 != nil {
+		p1.Close()
+		p2.Close()
+		return
 	}
 }
 
@@ -60,7 +87,7 @@ func StartGame(game Game) {
 				if nErr != nil {
 					break
 				}
-				move, rErr := ReadMsg(p1)
+				move, rErr := ReadMove(p1)
 				if rErr != nil {
 					break
 				}
@@ -73,7 +100,7 @@ func StartGame(game Game) {
 				if nErr != nil {
 					break
 				}
-				move, rErr := ReadMsg(p2)
+				move, rErr := ReadMove(p2)
 				if rErr != nil {
 					break
 				}
@@ -114,7 +141,7 @@ func StartGame(game Game) {
 	p2.Close()
 }
 
-func ReadMsg(conn *websocket.Conn) (string, error) {
+func ReadMove(conn *websocket.Conn) (string, error) {
 	var msg string
 	conn.SetReadDeadline(time.Now().Add(45 * time.Second))
 	err := conn.ReadJSON(&msg)
@@ -124,6 +151,24 @@ func ReadMsg(conn *websocket.Conn) (string, error) {
 func WriteMsg(conn *websocket.Conn, msg interface{}) error {
 	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	return conn.WriteJSON(msg)
+}
+
+func CheckReady(conn *websocket.Conn) error {
+	conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	wErr := conn.WriteJSON("READY")
+	if wErr != nil {
+		return wErr
+	}
+	var response string
+	conn.SetReadDeadline(time.Now().Add(15 * time.Second))
+	err := conn.ReadJSON(&response)
+	if err != nil {
+		return err
+	}
+	if response != "READY" {
+		return errors.New("expected READY")
+	}
+	return nil
 }
 
 func ProcessMove(t *TicTacToe, move string, p int) error {
