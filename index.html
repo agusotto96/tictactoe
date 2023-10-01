@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebSocket Test</title>
+    <title>Tic Tac Toe</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,7 +11,6 @@
             margin: 0;
             padding: 0;
         }
-
         h1 {
             background-color: #333;
             color: #fff;
@@ -19,7 +18,6 @@
             padding: 10px 0;
             margin: 0;
         }
-
         #container {
             max-width: 600px;
             margin: 0 auto;
@@ -28,7 +26,6 @@
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
             border-radius: 5px;
         }
-
         #messages {
             height: 200px;
             overflow-y: auto;
@@ -36,15 +33,13 @@
             padding: 10px;
             margin-bottom: 10px;
         }
-
         #messageInput {
-            width: calc(100% - 24px); /* Adjusted width to match connect button */
+            width: calc(100% - 24px);
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
             margin-bottom: 10px;
         }
-
         button {
             display: block;
             width: 100%;
@@ -52,109 +47,80 @@
             border-radius: 5px;
             cursor: pointer;
         }
-
         #connectButton {
             background-color: #333;
             color: #fff;
             border: none;
         }
-
         #connectButton:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
-
         #messageInput:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
-
-        #disconnectButton {
-            background-color: #FF5733;
-            color: #fff;
-            border: none;
-            display: none;
-        }
     </style>
 </head>
 <body>
-    <h1>WebSocket Test</h1>
+    <h1>Tic Tac Toe</h1>
     <div id="container">
         <div id="messages"></div>
         <input type="text" id="messageInput" placeholder="Enter a message" disabled>
         <button id="connectButton">Connect</button>
-        <button id="disconnectButton" disabled>Disconnect</button>
     </div>
-
     <script>
         const messagesDiv = document.getElementById("messages");
         const messageInput = document.getElementById("messageInput");
         const connectButton = document.getElementById("connectButton");
-        const disconnectButton = document.getElementById("disconnectButton");
         let ws;
-
+        let isConnected = false;
         connectButton.addEventListener("click", () => {
-            // Clear game history
             messagesDiv.innerHTML = "";
-            
-            // Open the WebSocket connection when the "Connect" button is clicked
             ws = new WebSocket(`ws://${window.location.host}/game`);
-
             ws.onopen = () => {
-                connectButton.style.display = "none"; // Hide the Connect button
-                disconnectButton.style.display = "block"; // Show the Disconnect button
-                disconnectButton.disabled = false; // Enable the Disconnect button
-                messageInput.disabled = true; // Initially disable the message input field
+                connectButton.disabled = true; 
+                isConnected = true; 
             };
-
             ws.onmessage = (event) => {
                 const message = event.data;
                 const timestamp = new Date().toLocaleTimeString();
                 if (message.includes('"READY"')) {
-                    // Respond with "READY" to the server without displaying it
                     ws.send('"READY"');
                 } else if (message.includes('"TURN"')) {
-                    // Enable the message input field on receiving "TURN" message
-                    messageInput.disabled = false;
+                    if (isConnected) {
+                        messageInput.disabled = false;
+                    }
                     messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 } else {
                     messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
-                    // Auto-scroll to the latest message
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 }
             };
-
             ws.onclose = (event) => {
-                connectButton.style.display = "block"; // Show the Connect button
-                disconnectButton.style.display = "none"; // Hide the Disconnect button
-                disconnectButton.disabled = true; // Disable the Disconnect button
-                messageInput.disabled = true; // Disable the message input field when disconnecting
+                connectButton.disabled = false; 
+                messageInput.value = ""; 
+                messageInput.disabled = true; 
+                isConnected = false; 
             };
-
             ws.onerror = (error) => {
                 console.error("WebSocket Error:", error);
             };
         });
-
         messageInput.addEventListener("keyup", (event) => {
             if (event.key === "Enter" && !messageInput.disabled) {
                 sendMessage();
             }
         });
-
-        disconnectButton.addEventListener("click", () => {
-            ws.close();
-        });
-
         function sendMessage() {
             const message = messageInput.value;
             ws.send(message);
             const timestamp = new Date().toLocaleTimeString();
             messagesDiv.innerHTML += `<p>${timestamp} - Sent: ${message}</p>`;
             messageInput.value = "";
-            messageInput.disabled = true; // Disable the message input field after sending a move
-            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
+            messageInput.disabled = true;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; 
         }
     </script>
 </body>
