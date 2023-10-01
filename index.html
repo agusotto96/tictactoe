@@ -38,7 +38,7 @@
         }
 
         #messageInput {
-            width: 100%;
+            width: calc(100% - 24px); /* Adjusted width to match connect button */
             padding: 10px;
             border: 1px solid #ccc;
             border-radius: 5px;
@@ -64,13 +64,7 @@
             cursor: not-allowed;
         }
 
-        #sendButton {
-            background-color: #333;
-            color: #fff;
-            border: none;
-        }
-
-        #sendButton:disabled {
+        #messageInput:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
@@ -87,17 +81,15 @@
     <h1>WebSocket Test</h1>
     <div id="container">
         <div id="messages"></div>
-        <input type="text" id="messageInput" placeholder="Enter a message">
+        <input type="text" id="messageInput" placeholder="Enter a message" disabled>
         <button id="connectButton">Connect</button>
         <button id="disconnectButton" disabled>Disconnect</button>
-        <button id="sendButton" disabled>Send</button>
     </div>
 
     <script>
         const messagesDiv = document.getElementById("messages");
         const messageInput = document.getElementById("messageInput");
         const connectButton = document.getElementById("connectButton");
-        const sendButton = document.getElementById("sendButton");
         const disconnectButton = document.getElementById("disconnectButton");
         let ws;
 
@@ -109,11 +101,10 @@
             ws = new WebSocket(`ws://${window.location.host}/game`);
 
             ws.onopen = () => {
-                messagesDiv.innerHTML += "<p>Connected to WebSocket server</p>";
                 connectButton.style.display = "none"; // Hide the Connect button
                 disconnectButton.style.display = "block"; // Show the Disconnect button
-                sendButton.disabled = false; // Enable the Send button
                 disconnectButton.disabled = false; // Enable the Disconnect button
+                messageInput.disabled = true; // Initially disable the message input field
             };
 
             ws.onmessage = (event) => {
@@ -122,6 +113,11 @@
                 if (message.includes('"READY"')) {
                     // Respond with "READY" to the server without displaying it
                     ws.send('"READY"');
+                } else if (message.includes('"TURN"')) {
+                    // Enable the message input field on receiving "TURN" message
+                    messageInput.disabled = false;
+                    messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
                 } else {
                     messagesDiv.innerHTML += `<p>${timestamp} - Received: ${message}</p>`;
                     // Auto-scroll to the latest message
@@ -130,15 +126,10 @@
             };
 
             ws.onclose = (event) => {
-                if (event.wasClean) {
-                    messagesDiv.innerHTML += `<p>Connection closed cleanly, code=${event.code}, reason=${event.reason}</p>`;
-                } else {
-                    messagesDiv.innerHTML += `<p>Connection died: code=${event.code}, reason=${event.reason}</p>`;
-                }
                 connectButton.style.display = "block"; // Show the Connect button
                 disconnectButton.style.display = "none"; // Hide the Disconnect button
-                sendButton.disabled = true; // Disable the Send button
                 disconnectButton.disabled = true; // Disable the Disconnect button
+                messageInput.disabled = true; // Disable the message input field when disconnecting
             };
 
             ws.onerror = (error) => {
@@ -146,12 +137,8 @@
             };
         });
 
-        sendButton.addEventListener("click", () => {
-            sendMessage();
-        });
-
         messageInput.addEventListener("keyup", (event) => {
-            if (event.key === "Enter") {
+            if (event.key === "Enter" && !messageInput.disabled) {
                 sendMessage();
             }
         });
@@ -166,8 +153,8 @@
             const timestamp = new Date().toLocaleTimeString();
             messagesDiv.innerHTML += `<p>${timestamp} - Sent: ${message}</p>`;
             messageInput.value = "";
-            // Auto-scroll to the latest message
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messageInput.disabled = true; // Disable the message input field after sending a move
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
         }
     </script>
 </body>
